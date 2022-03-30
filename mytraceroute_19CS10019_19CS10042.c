@@ -15,8 +15,15 @@
 #include <netdb.h>
 #include <time.h>
 
+#ifndef __NETINET_IP_H
 #include "ip.h"
+#endif
+
+#ifndef __NETINET_IP_ICMP_H
 #include "icmp.h"
+#endif
+// #include "ip.h"
+// #include "icmp.h"
 
 #define DEST_PORT 32164
 #define UDP_PORT 8080
@@ -147,6 +154,7 @@ int main(int argc, char* argv[])
           }
         }else
         {
+          printf("HELLO");
         }
       }else
       {
@@ -154,7 +162,7 @@ int main(int argc, char* argv[])
         debug_print("Timedout\n");
         if (no_repeats == 3)
         {
-          printf("Hop_Count(%d)\t*\t*\n", ttl);
+          printf("Hop_Count(%d)\t*\t*\t*\n", ttl);
           ttl++;
           no_repeats = 0;
         }else
@@ -191,7 +199,6 @@ void initialise_sockets(int* sockfd_udp, int* sockfd_icmp)
   int udpbind_res = bind(*sockfd_udp, (struct sockaddr*)&sock_udp_addr, sizeof(sock_udp_addr));
   if (udpbind_res < 0)
   {
-    printf("%ld\n", sockfd_udp);
     perror("Error in bind of udp socket\n");
     exit(1);
   }
@@ -223,13 +230,13 @@ void random_payload(char* payload)
 void print_bytes(char* buffer)
 {
   fflush(stdout);
-  printf("\nIP header %d:", sizeof (struct iphdr));
+  printf("\nIP header %ld:", sizeof (struct iphdr));
   int i = 0, j = 0, k = 0;
   for (; i < sizeof(struct iphdr); i++)
   {
     printf("%c ", buffer[i]);
   }
-  printf("\nUdp header %d:", sizeof(struct udphdr));
+  printf("\nUdp header %ld:", sizeof(struct udphdr));
   for (; j < sizeof(struct udphdr); j++)
   {
     printf("%c ", buffer[i + j]);
