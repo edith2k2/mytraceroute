@@ -29,6 +29,8 @@ void random_payload(char*);
 void initialise_sockets(int*, int*, struct sockaddr_in*);
 int checksum(char*);
 
+extern int errno;
+
 int main(int argc, char* argv[])
 {
   if (argc != 2)
@@ -51,15 +53,15 @@ int main(int argc, char* argv[])
   dest_addr.sin_family = AF_INET;
   dest_addr.sin_port = htons(DEST_PORT);
   initialise_sockets(&sockfd_udp, &sockfd_icmp, &sock_icmp_addr);
-  int ttl = 1;
   // setting headers
   char buffer[BUFFER_SIZE], payload[PAYLOAD];
   struct iphdr *ip_hdr = (struct iphdr*)buffer;
   struct udphdr *udp_hdr = (struct udphdr*)(buffer + sizeof(struct iphdr));
 
-  int no_repeats = 0;
-  fd_set master;
-  int send_message = 1;
+  // int ttl = 1;
+  // int no_repeats = 0;
+  // fd_set master;
+  // int send_message = 1;
   // waiting on select call
   // while(1)
   // {
@@ -138,11 +140,11 @@ void initialise_sockets(int* sockfd_udp, int* sockfd_icmp,struct sockaddr_in* so
 {
   *sockfd_udp = socket(AF_INET, SOCK_RAW, IPPROTO_UDP);
   *sockfd_icmp = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-  if (sockfd_udp < 0)
+  if (*sockfd_udp < 0)
   {
     perror("Error creation in sockfd_udp\n");
   }
-  if (sockfd_icmp < 0)
+  if (*sockfd_icmp < 0)
   {
     perror("Error creation in sockfd_icmp\n");
     exit(1);
@@ -158,11 +160,11 @@ void initialise_sockets(int* sockfd_udp, int* sockfd_icmp,struct sockaddr_in* so
   int udpbind_res = bind(*sockfd_udp, (struct sockaddr*)&sock_udp_addr, sizeof(sock_udp_addr));
   if (udpbind_res < 0)
   {
-    printf("%d\n", sockfd_udp);
+    printf("%ld\n", sockfd_udp);
     perror("Error in bind of udp socket\n");
     exit(1);
   }
-  int icmpbind_res = bind(*sockfd_icmp, (struct sockaddr*)&sock_icmp_addr, sizeof(sock_icmp_addr));
+  int icmpbind_res = bind(*sockfd_icmp, (struct sockaddr*)sock_icmp_addr, sizeof(*sock_icmp_addr));
   if (icmpbind_res < 0)
   {
     perror("Error in bind of icmp socket");
