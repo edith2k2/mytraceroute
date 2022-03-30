@@ -23,11 +23,18 @@
 #define PAYLOAD 52
 #define BUFFER_SIZE 1000
 #define TIMEOUT 1
+#define MAX_HOPS 30
+
+#define DEBUG 1
+#define debug_print(fmt, ...) \
+  do { if (DEBUG) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
+    __LINE__, __func__, ##__VA_ARGS__); } while (0)
 
 void set_headers(struct iphdr*, struct udphdr*, int, struct hostent *, int);
 void random_payload(char*);
 void initialise_sockets(int*, int*, struct sockaddr_in*);
 int checksum(char*);
+void print_bytes(char*);
 
 extern int errno;
 
@@ -58,82 +65,90 @@ int main(int argc, char* argv[])
   struct iphdr *ip_hdr = (struct iphdr*)buffer;
   struct udphdr *udp_hdr = (struct udphdr*)(buffer + sizeof(struct iphdr));
 
-  // int ttl = 1;
-  // int no_repeats = 0;
-  // fd_set master;
-  // int send_message = 1;
+  int ttl = 1;
+  int no_repeats = 0;
+  fd_set master;
+  int send_message = 1;
   // waiting on select call
-  // while(1)
-  // {
-  //   if (ttl > 16) break;
-  //   if (send_message)
-  //   {
-  //     random_payload(payload);
-  //     set_headers(ip_hdr, udp_hdr, ttl, h, checksum(payload));
-  //     strcpy(buffer + sizeof(ip_hdr) + sizeof(udp_hdr), payload);
-  //     int send_ret = sendto(sockfd_udp, buffer, ip_hdr -> tot_len, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
-  //     if (send_ret < 0)
-  //     {
-  //       perror("Error in Sendto\n");
-  //       exit(1);
-  //     }
-  //   }
-  //   FD_ZERO(&master);
-  //   FD_SET(sockfd_icmp, &master);
-  //   struct timeval tv;
-  //   tv.tv_sec = TIMEOUT;
-  //   tv.tv_usec = 0;
-  //   int select_ret = select(sockfd_icmp + 1, &master, 0, 0, &tv);
-  //   if (select_ret == -1)
-  //   {
-  //     perror("Error in select call\n");
-  //     exit(1);
-  //   }else
-  //   {
-  //     if (FD_ISSET(sockfd_icmp, &master))
-  //     {
-  //       char buffer[BUFFER_SIZE];
-  //       socklen_t sock_icmp_addr_len = sizeof(sock_icmp_addr);
-  //       int recv_ret = recvfrom(sockfd_icmp, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&sock_icmp_addr, &sock_icmp_addr_len);
-  //       if (recv_ret < 0)
-  //       {
-  //
-  //       }
-  //       struct iphdr* ip_ret_hdr = (struct iphdr*)buffer;
-  //       struct icmphdr* icmp_ret_hdr = (struct icmphdr*)(buffer + sizeof(ip_ret_hdr));
-  //       if (ip_ret_hdr -> protocol == 1)
-  //       {
-  //         if (icmp_ret_hdr -> type == 3)
-  //         {
-  //           if (ip_ret_hdr -> saddr == sock_icmp_addr.sin_addr.s_addr)
-  //           {
-  //             printf("Found\n");
-  //           }
-  //           exit(0);
-  //         }else if (icmp_ret_hdr -> type == 11)
-  //         {
-  //           printf("Time exceeded\n");
-  //           no_repeats = 0;
-  //         }
-  //       }else
-  //       {
-  //         printf("suspicious packet\n");
-  //       }
-  //     }else
-  //     {
-  //       // timeout
-  //       if (no_repeats == 3)
-  //       {
-  //         printf("****");
-  //         ttl++;
-  //         no_repeats = 0;
-  //       }else
-  //       {
-  //         no_repeats++;
-  //       }
-  //     }
-  //   }
-  // }
+  printf("mytraceroute to %s [%s] over a maximum of %d hops:\n", argv[1], inet_ntoa(*((struct in_addr*)h -> h_addr)), MAX_HOPS);
+  while(1)
+  {
+    if (ttl > 16) break;
+    if (send_message)
+    {
+      // printf("sent\n");
+      random_payload(payload);
+      set_headers(ip_hdr, udp_hdr, ttl, h, checksum(payload));
+      strcpy(buffer + sizeof(ip_hdr) + sizeof(udp_hdr), payload);
+      // print_bytes(buffer);
+      int send_ret = sendto(sockfd_udp, buffer, ip_hdr -> tot_len, 0, (struct sockaddr*)&dest_addr, sizeof(dest_addr));
+      if (send_ret < 0)
+      {
+        perror("Error in Sendto\n");
+        exit(1);
+      }
+    }
+    FD_ZERO(&master);
+    FD_SET(sockfd_icmp, &master);
+    struct timeval tv;
+    tv.tv_sec = TIMEOUT;
+    tv.tv_usec = 0;
+    int select_ret = select(sockfd_icmp + 1, &master, 0, 0, &tv);
+    if (select_ret == -1)
+    {
+      perror("Error in select call\n");
+      exit(1);
+    }else
+    {
+      debug_print("Enter else\n");
+      if (FD_ISSET(sockfd_icmp, &master))
+      {
+        debug_print("Enter FD_ISSET\n");
+        char buffer[BUFFER_SIZE];
+        socklen_t sock_icmp_addr_len = sizeof(sock_icmp_addr);
+        int recv_ret = recvfrom(sockfd_icmp, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&sock_icmp_addr, &sock_icmp_addr_len);
+        if (recv_ret < 0)
+        {
+          debug_print("Bad recvfrom\n");
+        }
+        struct iphdr* ip_ret_hdr = (struct iphdr*)buffer;
+        struct icmphdr* icmp_ret_hdr = (struct icmphdr*)(buffer + sizeof(struct iphdr));
+        if (ip_ret_hdr -> protocol == 1)
+        {
+          debug_print("Icmp header with type %d\n", icmp_ret_hdr -> type);
+          if (icmp_ret_hdr -> type == 3)
+          {
+            debug_print("DU\n");
+            if (ip_ret_hdr -> saddr == sock_icmp_addr.sin_addr.s_addr)
+            {
+              printf("Found\n");
+            }
+            exit(0);
+          }else if (icmp_ret_hdr -> type == 11)
+          {
+            debug_print("TTE\n");
+            printf("Time exceeded\n");
+            no_repeats = 0;
+          }
+        }else
+        {
+          printf("suspicious packet\n");
+        }
+      }else
+      {
+        // timeout
+        if (no_repeats == 3)
+        {
+          printf("****");
+          ttl++;
+          no_repeats = 0;
+        }else
+        {
+          no_repeats++;
+        }
+      }
+    }
+  }
 }
 
 void initialise_sockets(int* sockfd_udp, int* sockfd_icmp,struct sockaddr_in* sock_icmp_addr)
@@ -186,6 +201,21 @@ void random_payload(char* payload)
     payload[i] = (rand() % 26) + 'A';
   }
   payload[PAYLOAD - 1] = '\0';
+}
+
+void print_bytes(char* buffer)
+{
+  printf("IP header:");
+  int i = 0;
+  for (; i < sizeof(struct iphdr); i++)
+  {
+    printf("%02X ", buffer[i]);
+  }
+  printf("\nUdp header:");
+  for (int j = 0; j < sizeof(struct udphdr); j++)
+  {
+    printf("%02X ", buffer[i + j]);
+  }
 }
 
 int checksum(char* header)
