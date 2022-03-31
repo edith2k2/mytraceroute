@@ -261,7 +261,7 @@ void set_headers(struct iphdr* ip_hdr, struct udphdr* udp_hdr, int ttl, struct h
   ip_hdr -> ihl = 5;
   ip_hdr -> tos = 0;
   ip_hdr -> tot_len = sizeof(struct iphdr) + sizeof(struct udphdr) + PAYLOAD;
-  ip_hdr -> id = htons(54322);
+  ip_hdr -> id = htons(44444);
   ip_hdr -> ttl = ttl;
   ip_hdr -> protocol = 17; // udp
   ip_hdr -> saddr = 0;
